@@ -2,6 +2,8 @@ import kotlin.math.abs
 
 data class Point(val x: Int, val y: Int) {
 
+    fun eq(x: Int, y: Int): Boolean = this.x == x && this.y == y
+
     fun move(direction: String): Point {
         return when (direction) {
             "R" -> Point(x, y + 1)
