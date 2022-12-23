@@ -38,6 +38,8 @@ data class Point(val x: Int, val y: Int) {
         }
         return Point(if (x < to.x) to.x - 1 else to.x + 1, to.y)
     }
+
+    operator fun plus(other: Point): Point = Point(x + other.x, y + other.y)
 }
 
 val MutableList<Point>.tail: Point

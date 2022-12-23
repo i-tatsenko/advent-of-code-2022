@@ -47,7 +47,7 @@ fun interface Operand {
 }
 
 val Old = Operand { it }
-val Num: (Long) -> Operand = { value: Long -> Operand { _: Long -> value } }
+private val Num: (Long) -> Operand = { value: Long -> Operand { _: Long -> value } }
 
 class Plus(private val operand: Operand) : Modification {
     override fun apply(x: Long): Long = x + operand.value(x)
