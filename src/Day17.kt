@@ -1,24 +1,46 @@
 import kotlin.math.max
 
-data class LongPoint(val x: Long, val y: Long) {
+data class LongPoint(var x: Long, var y: Long) {
 
     fun eq(x: Long, y: Long): Boolean = this.x == x && this.y == y
 
-    fun move(direction: String, distance: Long = 1L): LongPoint {
-        return when (direction) {
-            "R", ">" -> LongPoint(x, y + distance)
-            "L", "<" -> LongPoint(x, y - distance)
-            "U", "^" -> LongPoint(x + distance, y)
-            else -> LongPoint(x - distance, y)
+    fun move(direction: Char, distance: Long = 1L) {
+        when (direction) {
+            'R', '>' -> y += distance
+            'L', '<' -> y -= distance
+            'U', '^' -> x += distance
+            else -> x -= distance
         }
     }
+
+    fun highest(other: LongPoint): LongPoint = if (x > other.x) this else other
 }
 
 private typealias Rock = Set<LongPoint>
 
-fun Rock.move(d: String, distance: Long = 1): Rock = mapTo(mutableSetOf()) { it.move(d, distance) }
-fun Rock.highestPoint() = maxOf { it.x }
+private class Wind(private val input: String) : Iterator<Char> {
+    var index = 0L
+    val size: Int
+        get() = input.length
+    val counter: Long
+        get() = index
 
+    override fun hasNext() = true
+
+    override fun next(): Char = input[(index++ % input.length).toInt()]
+
+
+}
+
+fun Rock.move(d: Char, distance: Long = 1) = forEach { it.move(d, distance) }
+fun Rock.highestPoint() = maxBy { it.x }
+
+fun Char.reverse() = when (this) {
+    '>' -> '<'
+    '<' -> '>'
+    'V' -> '^'
+    else -> 'V'
+}
 
 fun main() {
 
@@ -39,9 +61,9 @@ fun main() {
             )
             yield(
                 setOf(
-                    LongPoint(2,2),
-                    LongPoint(1,2),
-                    LongPoint(0, 0), LongPoint(0, 1), LongPoint(0,2)
+                    LongPoint(2, 2),
+                    LongPoint(1, 2),
+                    LongPoint(0, 0), LongPoint(0, 1), LongPoint(0, 2)
                 )
             )
             yield(
@@ -52,50 +74,84 @@ fun main() {
                     LongPoint(0, 0),  // =
                 )
             )
-            yield(setOf(
-                LongPoint(1, 0), LongPoint(1, 1),
-                LongPoint(0, 0), LongPoint(0, 1),
-            ))
+            yield(
+                setOf(
+                    LongPoint(1, 0), LongPoint(1, 1),
+                    LongPoint(0, 0), LongPoint(0, 1),
+                )
+            )
 
         }
     }
 
+    data class HistoryCacheKey(val figure: Long, val wind: Long, val points: Set<Point>)
+    data class HistoryCacheValue(val figuresFell: Long, val highestPoint: Long)
 
-    class Field(val wind: Iterator<String>) {
+    fun sign(highestPoint: Long, points: Set<LongPoint>): Set<Point> {
+        val deepness = 50
+        return points.asSequence().filter { highestPoint - it.x < deepness }
+            .mapTo(mutableSetOf()) { Point((highestPoint - it.x).toInt(), it.y.toInt()) }
+    }
+
+
+    class Field(val wind: Wind) {
         private var fallenFigures = mutableSetOf<LongPoint>()
         private var highestPoint = -1L
+        private val historyCache = HashMap<HistoryCacheKey, HistoryCacheValue>()
 
-        fun Rock.valid(): Boolean = none {it.y < 0 || it.y > 6 || it.x < 0 || fallenFigures.contains(it)}
+        fun Rock.valid(): Boolean = none { it.y < 0 || it.y > 6 || it.x < 0 || fallenFigures.contains(it) }
 
         fun simulate(rounds: Long): Long {
             val rockSource = rocks().iterator()
-            for (round in 1..rounds) {
-                var rock = rockSource.next()
-                rock = rock.move(">", 2)
-                rock = rock.move("^", highestPoint + 4)
-                rockfall@while(true) {
+            var toAdd = 0L
+            var rockNumber = 1L
+            var addOne = true
+            while (rockNumber <= rounds) {
+                val rock = rockSource.next()
+                rock.move('>', 2)
+                rock.move('^', highestPoint + 4)
+                rockfall@ while (true) {
 //                    print(rock)
                     val windFlow = wind.next()
-                    val afterWind = rock.move(windFlow)
-                    if (afterWind.valid()) {
-                        rock = afterWind
+                    rock.move(windFlow)
+                    if (!rock.valid()) {
+                        rock.move(windFlow.reverse())
                     }
-                    val afterFall = rock.move("V")
-                    if (afterFall.valid()) {
-                        rock = afterFall
-                    } else {
-                        highestPoint = max(highestPoint, rock.highestPoint())
+                    rock.move('V')
+                    if (!rock.valid()) {
+                        rock.move('^')
+                        highestPoint = max(highestPoint, rock.highestPoint().x)
                         fallenFigures.addAll(rock)
+
+
+                        val cacheKey = HistoryCacheKey(
+                            rockNumber % 5,
+                            wind.counter % wind.size,
+                            sign(highestPoint, fallenFigures)
+                        )
+                        val history = historyCache[cacheKey]
+                        if (rounds > 2022 && rockNumber > 1000 && history != null) {
+                            val highestDiff = highestPoint - history.highestPoint
+                            val rocksDiff = rockNumber - history.figuresFell
+                            val amt = (rounds - rockNumber) / rocksDiff
+                            toAdd += amt * highestDiff
+                            rockNumber += amt*rocksDiff
+                            addOne = false
+                        } else {
+                            historyCache[cacheKey] = HistoryCacheValue(rockNumber, highestPoint)
+                            rockNumber++
+                        }
                         break@rockfall
                     }
                 }
 
             }
-            return highestPoint + 1
+            return highestPoint + toAdd + if (addOne) 1 else 0
         }
 
         fun print(currentRock: Rock) {
-            for (x in max(highestPoint, currentRock.highestPoint()) downTo 0) {
+            val highest = max(highestPoint, currentRock.highestPoint().x)
+            for (x in highest downTo 0) {
                 for (y in 0L..6) {
                     val p = LongPoint(x, y)
                     val ch = when {
@@ -112,27 +168,12 @@ fun main() {
     }
 
 
-
     fun part1(input: List<String>): Long {
-        val wind = sequence {
-            while (true) {
-                for (ch in input[0]) {
-                    yield(ch.toString())
-                }
-            }
-        }
-        return Field(wind.iterator()).simulate(2022)
+        return Field(Wind(input.first())).simulate(2022)
     }
 
     fun part2(input: List<String>): Long {
-        val wind = sequence {
-            while (true) {
-                for (ch in input[0]) {
-                    yield(ch.toString())
-                }
-            }
-        }
-        return Field(wind.iterator()).simulate(1000000000000)
+        return Field(Wind(input.first())).simulate(1000000000000)
     }
 
 
