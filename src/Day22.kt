@@ -100,7 +100,7 @@ fun Field.move(from: Point, to: Point): Point {
 }
 
 
-private data class Direction(val d: Char) {
+data class Direction(val d: Char) {
 
     fun move(p: Point): Point {
         return when (d) {
@@ -143,7 +143,7 @@ private data class Direction(val d: Char) {
     override fun toString(): String = d.toString()
 }
 
-private sealed interface Action {
+sealed interface Action {
     data class Move(val v: Int) : Action
     data class Rotate(val clockwise: Boolean) : Action
 }

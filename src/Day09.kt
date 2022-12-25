@@ -1,17 +1,19 @@
 import kotlin.math.abs
 
 data class Point(val x: Int, val y: Int) {
-
-    fun eq(x: Int, y: Int): Boolean = this.x == x && this.y == y
-
+    
     fun move(direction: String): Point {
         return when (direction) {
-            "R" -> Point(x, y + 1)
-            "L" -> Point(x, y - 1)
-            "U" -> Point(x + 1, y)
+            "R", ">" -> Point(x, y + 1)
+            "L", "<" -> Point(x, y - 1)
+            "U", "^" -> Point(x + 1, y)
             else -> Point(x - 1, y)
         }
     }
+
+    fun distance(other: Point): Int = abs(x - other.x) + y - other.y
+
+    fun inBounds(maxValidX: Int, maxValidY: Int): Boolean = x > -1 && x <= maxValidX && y > -1 && y <= maxValidY
 
 //    fun keepUp(to: Point): Point {
 //        if (abs(x - to.x) < 2 && abs(y - to.y) < 2) {
